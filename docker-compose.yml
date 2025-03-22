@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jubel_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: tasbdkel5
+      POSTGRES_DB: jubel_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jubel_backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=tasbdkel5
+      - DB_NAME=jubel_db
+      - JWT_SECRET=kelompok5tasbd
+      - APP_PORT=8080
+    restart: always
+
+volumes:
+  postgres_data:
