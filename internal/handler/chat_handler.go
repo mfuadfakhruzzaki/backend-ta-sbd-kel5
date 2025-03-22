@@ -32,24 +32,50 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 	}
 
 	// Bind data
-	var chatData domain.Chat
-	valid, errors := utils.ValidateJSON(c, &chatData)
-	if !valid {
-		utils.ErrorResponse(c, http.StatusBadRequest, "Validasi gagal", errors)
+	var chatData struct {
+		PenerimaID uint   `json:"penerima_id" binding:"required"`
+		BarangID   uint   `json:"barang_id" binding:"required"`
+		Pesan      string `json:"pesan" binding:"required"`
+	}
+	
+	// Binding JSON
+	if err := c.ShouldBindJSON(&chatData); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Gagal membaca data: "+err.Error(), nil)
+		return
+	}
+	
+	// Validasi manual
+	if chatData.PenerimaID == 0 {
+		utils.ErrorResponse(c, http.StatusBadRequest, "ID penerima tidak boleh kosong", nil)
+		return
+	}
+	
+	if chatData.BarangID == 0 {
+		utils.ErrorResponse(c, http.StatusBadRequest, "ID barang tidak boleh kosong", nil)
+		return
+	}
+	
+	if chatData.Pesan == "" {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Pesan tidak boleh kosong", nil)
 		return
 	}
 
-	// Set pengirim ID ke user yang sedang login
-	chatData.PengirimID = userID.(uint)
+	// Buat objek chat
+	chat := &domain.Chat{
+		PengirimID: userID.(uint),
+		PenerimaID: chatData.PenerimaID,
+		BarangID:   chatData.BarangID,
+		Pesan:      chatData.Pesan,
+	}
 
 	// Kirim pesan
-	chat, err := h.chatService.SendMessage(c.Request.Context(), &chatData, userID.(uint))
+	sentChat, err := h.chatService.SendMessage(c.Request.Context(), chat, userID.(uint))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusCreated, "Pesan berhasil dikirim", chat)
+	utils.SuccessResponse(c, http.StatusCreated, "Pesan berhasil dikirim", sentChat)
 }
 
 // GetChat mendapatkan data chat berdasarkan ID

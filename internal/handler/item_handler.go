@@ -31,22 +31,53 @@ func (h *ItemHandler) CreateItem(c *gin.Context) {
 		return
 	}
 
-	// Bind data
-	var itemData domain.Item
-	valid, errors := utils.ValidateJSON(c, &itemData)
-	if !valid {
-		utils.ErrorResponse(c, http.StatusBadRequest, "Validasi gagal", errors)
+	// Bind data item
+	var itemData struct {
+		NamaBarang string               `json:"nama_barang" binding:"required"`
+		Harga      float64              `json:"harga" binding:"required,gt=0"`
+		Kategori   domain.ItemCategory  `json:"kategori" binding:"required,oneof=Buku Elektronik Perabotan Kos-kosan Lainnya"`
+		Deskripsi  string               `json:"deskripsi"`
+	}
+	
+	// Binding JSON
+	if err := c.ShouldBindJSON(&itemData); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Gagal membaca data: "+err.Error(), nil)
+		return
+	}
+	
+	// Validasi manual
+	if itemData.NamaBarang == "" {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Nama barang tidak boleh kosong", nil)
+		return
+	}
+	
+	if itemData.Harga <= 0 {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Harga harus lebih dari 0", nil)
+		return
+	}
+	
+	if itemData.Kategori == "" {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Kategori tidak boleh kosong", nil)
 		return
 	}
 
+	// Buat objek item
+	item := &domain.Item{
+		NamaBarang: itemData.NamaBarang,
+		Harga:      itemData.Harga,
+		Kategori:   itemData.Kategori,
+		Deskripsi:  itemData.Deskripsi,
+		Status:     domain.StatusTersedia, // Default status
+	}
+
 	// Buat barang baru
-	item, err := h.itemService.Create(c.Request.Context(), &itemData, userID.(uint))
+	newItem, err := h.itemService.Create(c.Request.Context(), item, userID.(uint))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusCreated, "Barang berhasil ditambahkan", item)
+	utils.SuccessResponse(c, http.StatusCreated, "Barang berhasil ditambahkan", newItem)
 }
 
 // GetItem mendapatkan data barang berdasarkan ID
@@ -201,15 +232,35 @@ func (h *ItemHandler) UpdateItem(c *gin.Context) {
 	}
 
 	// Bind data
-	var itemData domain.Item
-	valid, errors := utils.ValidateJSON(c, &itemData)
-	if !valid {
-		utils.ErrorResponse(c, http.StatusBadRequest, "Validasi gagal", errors)
+	var itemData struct {
+		NamaBarang string               `json:"nama_barang"`
+		Harga      float64              `json:"harga" binding:"omitempty,gt=0"`
+		Kategori   domain.ItemCategory  `json:"kategori" binding:"omitempty,oneof=Buku Elektronik Perabotan Kos-kosan Lainnya"`
+		Deskripsi  string               `json:"deskripsi"`
+	}
+	
+	// Binding JSON
+	if err := c.ShouldBindJSON(&itemData); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Gagal membaca data: "+err.Error(), nil)
 		return
 	}
 
+	// Validasi harga jika tidak kosong
+	if itemData.Harga < 0 {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Harga tidak boleh negatif", nil)
+		return
+	}
+
+	// Buat objek item
+	item := &domain.Item{
+		NamaBarang: itemData.NamaBarang,
+		Harga:      itemData.Harga,
+		Kategori:   itemData.Kategori,
+		Deskripsi:  itemData.Deskripsi,
+	}
+
 	// Update barang
-	updatedItem, err := h.itemService.Update(c.Request.Context(), uint(id), &itemData, userID.(uint))
+	updatedItem, err := h.itemService.Update(c.Request.Context(), uint(id), item, userID.(uint))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
@@ -237,11 +288,12 @@ func (h *ItemHandler) UpdateItemStatus(c *gin.Context) {
 
 	// Bind data
 	var statusData struct {
-		Status domain.ItemStatus `json:"status" validate:"required,oneof=Tersedia Terjual Dihapus"`
+		Status domain.ItemStatus `json:"status" binding:"required,oneof=Tersedia Terjual Dihapus"`
 	}
-	valid, errors := utils.ValidateJSON(c, &statusData)
-	if !valid {
-		utils.ErrorResponse(c, http.StatusBadRequest, "Validasi gagal", errors)
+	
+	// Binding JSON
+	if err := c.ShouldBindJSON(&statusData); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Gagal membaca data: "+err.Error(), nil)
 		return
 	}
 

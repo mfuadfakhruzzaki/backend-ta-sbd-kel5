@@ -11,6 +11,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -20,7 +25,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -29,6 +35,10 @@ services:
       - DB_NAME=jubel_db
       - JWT_SECRET=kelompok5tasbd
       - APP_PORT=8080
+      - UPLOAD_DIR=/app/uploads
+      - MAX_UPLOAD_SIZE=5242880
+    volumes:
+      - ./uploads:/app/uploads
     restart: always
 
 volumes:

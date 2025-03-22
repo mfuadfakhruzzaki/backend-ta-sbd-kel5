@@ -32,24 +32,36 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 	}
 
 	// Bind data
-	var transactionData domain.Transaction
-	valid, errors := utils.ValidateJSON(c, &transactionData)
-	if !valid {
-		utils.ErrorResponse(c, http.StatusBadRequest, "Validasi gagal", errors)
+	var transactionData struct {
+		BarangID uint `json:"barang_id" binding:"required"`
+	}
+	
+	// Binding JSON
+	if err := c.ShouldBindJSON(&transactionData); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Gagal membaca data: "+err.Error(), nil)
+		return
+	}
+	
+	// Validasi manual
+	if transactionData.BarangID == 0 {
+		utils.ErrorResponse(c, http.StatusBadRequest, "ID barang tidak boleh kosong", nil)
 		return
 	}
 
-	// Set pembeli ID ke user yang sedang login
-	transactionData.PembeliID = userID.(uint)
+	// Buat objek transaksi
+	transaction := &domain.Transaction{
+		BarangID:  transactionData.BarangID,
+		PembeliID: userID.(uint),
+	}
 
 	// Buat transaksi baru
-	transaction, err := h.transactionService.Create(c.Request.Context(), &transactionData, userID.(uint))
+	createdTransaction, err := h.transactionService.Create(c.Request.Context(), transaction, userID.(uint))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusCreated, "Transaksi berhasil dibuat", transaction)
+	utils.SuccessResponse(c, http.StatusCreated, "Transaksi berhasil dibuat", createdTransaction)
 }
 
 // GetTransaction mendapatkan data transaksi berdasarkan ID
@@ -215,11 +227,18 @@ func (h *TransactionHandler) UpdateTransactionStatus(c *gin.Context) {
 
 	// Bind data
 	var statusData struct {
-		Status domain.TransactionStatus `json:"status" validate:"required,oneof=Pending Selesai Dibatalkan"`
+		Status domain.TransactionStatus `json:"status" binding:"required,oneof=Pending Selesai Dibatalkan"`
 	}
-	valid, errors := utils.ValidateJSON(c, &statusData)
-	if !valid {
-		utils.ErrorResponse(c, http.StatusBadRequest, "Validasi gagal", errors)
+	
+	// Binding JSON
+	if err := c.ShouldBindJSON(&statusData); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Gagal membaca data: "+err.Error(), nil)
+		return
+	}
+	
+	// Validasi manual
+	if statusData.Status == "" {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Status transaksi tidak boleh kosong", nil)
 		return
 	}
 

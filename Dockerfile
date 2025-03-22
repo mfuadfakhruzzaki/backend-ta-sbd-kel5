@@ -9,7 +9,7 @@ RUN go mod download
 # Salin seluruh kode sumber
 COPY . .
 
-# Kompilasi aplikasi (path mengarah ke main.go)
+# Kompilasi aplikasi
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/api/main.go
 
 # Tahap kedua: Buat image yang lebih kecil
@@ -23,7 +23,7 @@ RUN apk --no-cache add ca-certificates tzdata
 # Salin binary dari tahap builder
 COPY --from=builder /app/main .
 
-# Salin file konfigurasi lain jika diperlukan
+# Salin file konfigurasi
 COPY --from=builder /app/.env* ./
 
 # Buat direktori uploads

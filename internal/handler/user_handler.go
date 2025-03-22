@@ -117,16 +117,30 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	// Bind data
-	var userData domain.User
-	valid, errors := utils.ValidateJSON(c, &userData)
-	if !valid {
-		utils.ErrorResponse(c, http.StatusBadRequest, "Validasi gagal", errors)
+	// Bind data menggunakan struct khusus untuk update
+	var userData struct {
+		Nama     string `json:"nama"`
+		NoHP     string `json:"no_hp"`
+		Alamat   string `json:"alamat"`
+		Password string `json:"password"`
+	}
+	
+	// Binding JSON
+	if err := c.ShouldBindJSON(&userData); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Gagal membaca data: "+err.Error(), nil)
 		return
+	}
+	
+	// Buat objek user untuk update
+	user := &domain.User{
+		Nama:     userData.Nama,
+		NoHP:     userData.NoHP,
+		Alamat:   userData.Alamat,
+		Password: userData.Password,
 	}
 
 	// Update pengguna
-	updatedUser, err := h.userService.Update(c.Request.Context(), uint(id), &userData)
+	updatedUser, err := h.userService.Update(c.Request.Context(), uint(id), user)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
