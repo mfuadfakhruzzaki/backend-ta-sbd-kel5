@@ -20,7 +20,7 @@ type User struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	Nama      string         `gorm:"size:100;not null" json:"nama" validate:"required,min=3,max=100"`
 	Email     string         `gorm:"size:100;not null;uniqueIndex" json:"email" validate:"required,email"`
-	Password  string         `gorm:"size:255;not null" json:"-" validate:"required,min=8"`
+	Password  string         `gorm:"size:255;not null" json:"password" validate:"required,min=8"` // Pastikan tag json adalah "password" bukan "Password"
 	NoHP      string         `gorm:"column:no_hp;size:15;not null" json:"no_hp" validate:"required"`
 	Alamat    string         `gorm:"type:text" json:"alamat"`
 	Role      Role           `gorm:"type:user_role;default:user" json:"role"`

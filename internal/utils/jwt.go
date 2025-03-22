@@ -28,7 +28,7 @@ func GenerateToken(user *domain.User, secret string, expiry time.Duration) (stri
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "jual-beli-mahasiswa",
+			Issuer:    "jubel-app",
 			Subject:   fmt.Sprintf("%d", user.ID),
 		},
 	}
