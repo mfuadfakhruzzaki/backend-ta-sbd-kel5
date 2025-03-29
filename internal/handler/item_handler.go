@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/mfuadfakhruzzaki/jubel/internal/config"
 	"github.com/mfuadfakhruzzaki/jubel/internal/domain"
 	"github.com/mfuadfakhruzzaki/jubel/internal/service"
 	"github.com/mfuadfakhruzzaki/jubel/internal/utils"
@@ -367,14 +370,39 @@ func (h *ItemHandler) UploadItemImage(c *gin.Context) {
 	}
 
 	// Upload gambar
-	fileName, err := h.itemService.UploadImage(c, uint(id), userID.(uint))
+	fileInfo, err := h.itemService.UploadImage(c, uint(id), userID.(uint))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
 
+	// Parse fileInfo to get fileID and fileName
+	parts := strings.Split(fileInfo, "|")
+	fileID := parts[0]
+	fileName := fileInfo
+	if len(parts) > 1 {
+		fileName = parts[1]
+	}
+
+	// Get Appwrite config for creating URLs
+	appwriteConfig, err := config.LoadConfig()
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Gagal memuat konfigurasi", nil)
+		return
+	}
+
+	// Create file view URL
+	appwriteEndpoint := appwriteConfig.Appwrite.Endpoint
+	
+	viewURL := fmt.Sprintf("%s/storage/buckets/%s/files/%s/view", 
+		appwriteEndpoint,
+		appwriteConfig.Appwrite.BucketID,
+		fileID)
+
 	utils.SuccessResponse(c, http.StatusOK, "Gambar berhasil diupload", gin.H{
 		"file_name": fileName,
+		"file_id": fileID,
+		"view_url": viewURL,
 	})
 }
 

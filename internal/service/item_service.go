@@ -1,11 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math"
-	"os"
+	"mime/multipart"
+	"net/http"
 	"path/filepath"
 	"time"
 
@@ -24,6 +27,7 @@ type ItemService interface {
 	Update(ctx context.Context, id uint, item *domain.Item, userID uint) (*domain.ItemResponse, error)
 	UpdateStatus(ctx context.Context, id uint, status domain.ItemStatus, userID uint) error
 	Delete(ctx context.Context, id uint, userID uint) error
+	// UploadImage mengembalikan string dalam format "fileID|fileName"
 	UploadImage(ctx *gin.Context, itemID uint, userID uint) (string, error)
 }
 
@@ -232,34 +236,92 @@ func (s *itemService) UploadImage(ctx *gin.Context, itemID uint, userID uint) (s
 		return "", fmt.Errorf("ukuran file terlalu besar (maksimal %d bytes)", s.config.Upload.MaxSize)
 	}
 
-	// Pastikan direktori upload ada
-	if _, err := os.Stat(s.config.Upload.Dir); os.IsNotExist(err) {
-		if err := os.MkdirAll(s.config.Upload.Dir, 0755); err != nil {
-			return "", fmt.Errorf("gagal membuat direktori upload: %v", err)
-		}
+	// Buka file untuk dibaca
+	src, err := file.Open()
+	if err != nil {
+		return "", fmt.Errorf("gagal membuka file: %v", err)
+	}
+	defer src.Close()
+
+	// Baca file ke dalam byte array
+	fileBytes, err := io.ReadAll(src)
+	if err != nil {
+		return "", fmt.Errorf("gagal membaca file: %v", err)
 	}
 
 	// Buat nama file unik
 	ext := filepath.Ext(file.Filename)
 	fileName := fmt.Sprintf("%d_%d%s", itemID, time.Now().Unix(), ext)
-	filePath := filepath.Join(s.config.Upload.Dir, fileName)
+	fileID := fmt.Sprintf("item_%d_%d", itemID, time.Now().Unix())
 
-	// Simpan file
-	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
-		return "", err
+	// Buat endpoint Appwrite
+	appwriteEndpoint := s.config.Appwrite.Endpoint
+	
+	// Buat URL untuk upload ke Appwrite
+	uploadURL := fmt.Sprintf("%s/storage/buckets/%s/files", 
+		appwriteEndpoint, 
+		s.config.Appwrite.BucketID)
+
+	// Buat body untuk request
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// Tambahkan fileId field
+	if err := writer.WriteField("fileId", fileID); err != nil {
+		return "", fmt.Errorf("gagal membuat field fileId: %v", err)
 	}
 
-	// Hapus gambar lama jika ada
-	if existingItem.Gambar != "" {
-		oldFilePath := filepath.Join(s.config.Upload.Dir, existingItem.Gambar)
-		os.Remove(oldFilePath) // Abaikan error jika file tidak ada
+	// Tambahkan file
+	part, err := writer.CreateFormFile("file", fileName)
+	if err != nil {
+		return "", fmt.Errorf("gagal membuat form file: %v", err)
+	}
+	if _, err := io.Copy(part, bytes.NewReader(fileBytes)); err != nil {
+		return "", fmt.Errorf("gagal menulis file ke form: %v", err)
+	}
+	
+	// Tutup writer multipart
+	if err := writer.Close(); err != nil {
+		return "", fmt.Errorf("gagal menutup writer: %v", err)
 	}
 
-	// Update path gambar di database
-	existingItem.Gambar = fileName
+	// Buat HTTP request
+	req, err := http.NewRequest("POST", uploadURL, body)
+	if err != nil {
+		return "", fmt.Errorf("gagal membuat request: %v", err)
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("X-Appwrite-Project", s.config.Appwrite.ProjectID)
+	req.Header.Set("X-Appwrite-Key", s.config.Appwrite.APIKey)
+
+	// Kirim request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("gagal mengirim request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Baca response
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("gagal membaca response: %v", err)
+	}
+
+	// Cek response status
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return "", fmt.Errorf("gagal upload file ke Appwrite: %s", string(respBody))
+	}
+
+	// Simpan informasi file di database
+	// Format: fileID|fileName agar kita bisa mengakses dan hapus file di Appwrite nanti
+	gambarInfo := fmt.Sprintf("%s|%s", fileID, fileName)
+	existingItem.Gambar = gambarInfo
 	if err := s.itemRepo.Update(ctx, existingItem); err != nil {
 		return "", err
 	}
 
-	return fileName, nil
+	return gambarInfo, nil
 }
