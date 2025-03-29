@@ -9,6 +9,7 @@ import (
 	"math"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -27,7 +28,7 @@ type ItemService interface {
 	Update(ctx context.Context, id uint, item *domain.Item, userID uint) (*domain.ItemResponse, error)
 	UpdateStatus(ctx context.Context, id uint, status domain.ItemStatus, userID uint) error
 	Delete(ctx context.Context, id uint, userID uint) error
-	// UploadImage mengembalikan string dalam format "fileID|fileName"
+	// UploadImage mengembalikan string dalam format "fileID|fileName|viewURL"
 	UploadImage(ctx *gin.Context, itemID uint, userID uint) (string, error)
 }
 
@@ -256,26 +257,64 @@ func (s *itemService) UploadImage(ctx *gin.Context, itemID uint, userID uint) (s
 
 	// Buat endpoint Appwrite
 	appwriteEndpoint := s.config.Appwrite.Endpoint
+	projectID := s.config.Appwrite.ProjectID
+	bucketID := s.config.Appwrite.BucketID
+	apiKey := s.config.Appwrite.APIKey
 	
-	// Buat URL untuk upload ke Appwrite
+	// Tampilkan log untuk debug
+	fmt.Printf("Appwrite Config:\n")
+	fmt.Printf("  Endpoint: %s\n", appwriteEndpoint)
+	fmt.Printf("  Project ID: %s\n", projectID)
+	fmt.Printf("  Bucket ID: %s\n", bucketID)
+	fmt.Printf("  File ID: %s\n", fileID)
+	
+	// Cek konfigurasi
+	if projectID == "" {
+		return "", fmt.Errorf("project ID tidak boleh kosong")
+	}
+	if bucketID == "" {
+		return "", fmt.Errorf("bucket ID tidak boleh kosong")
+	}
+	if apiKey == "" {
+		return "", fmt.Errorf("API key tidak boleh kosong")
+	}
+	
+	// Simpan file ke sistem lokal sementara (sebagai backup)
+	tempDir := "./temp"
+	if _, err := os.Stat(tempDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(tempDir, 0755); err != nil {
+			return "", fmt.Errorf("gagal membuat direktori temp: %v", err)
+		}
+	}
+	
+	// Simpan file ke lokal sementara
+	tempFilePath := filepath.Join(tempDir, fileName)
+	if err := ctx.SaveUploadedFile(file, tempFilePath); err != nil {
+		return "", fmt.Errorf("gagal menyimpan file sementara: %v", err)
+	}
+	defer os.Remove(tempFilePath) // Hapus file sementara setelah selesai
+	
+	// Persiapkan URL upload Appwrite
 	uploadURL := fmt.Sprintf("%s/storage/buckets/%s/files", 
 		appwriteEndpoint, 
-		s.config.Appwrite.BucketID)
-
+		bucketID)
+		
 	// Buat body untuk request
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-
+	
 	// Tambahkan fileId field
 	if err := writer.WriteField("fileId", fileID); err != nil {
 		return "", fmt.Errorf("gagal membuat field fileId: %v", err)
 	}
-
+	
 	// Tambahkan file
 	part, err := writer.CreateFormFile("file", fileName)
 	if err != nil {
 		return "", fmt.Errorf("gagal membuat form file: %v", err)
 	}
+	
+	// Copy file bytes ke form
 	if _, err := io.Copy(part, bytes.NewReader(fileBytes)); err != nil {
 		return "", fmt.Errorf("gagal menulis file ke form: %v", err)
 	}
@@ -284,44 +323,65 @@ func (s *itemService) UploadImage(ctx *gin.Context, itemID uint, userID uint) (s
 	if err := writer.Close(); err != nil {
 		return "", fmt.Errorf("gagal menutup writer: %v", err)
 	}
-
-	// Buat HTTP request
+	
+	// Buat request
 	req, err := http.NewRequest("POST", uploadURL, body)
 	if err != nil {
 		return "", fmt.Errorf("gagal membuat request: %v", err)
 	}
-
+	
 	// Set headers
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("X-Appwrite-Project", s.config.Appwrite.ProjectID)
-	req.Header.Set("X-Appwrite-Key", s.config.Appwrite.APIKey)
-
+	req.Header.Add("X-Appwrite-Project", projectID)
+	req.Header.Add("X-Appwrite-Key", apiKey)
+	
+	// Print semua header untuk debug
+	fmt.Printf("Request Headers:\n")
+	for name, values := range req.Header {
+		for _, value := range values {
+			fmt.Printf("  %s: %s\n", name, value)
+		}
+	}
+	
 	// Kirim request
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+	
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("gagal mengirim request: %v", err)
 	}
 	defer resp.Body.Close()
-
+	
 	// Baca response
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("gagal membaca response: %v", err)
 	}
-
+	
+	// Print response untuk debug
+	fmt.Printf("Response Status: %d\n", resp.StatusCode)
+	fmt.Printf("Response Body: %s\n", string(respBody))
+	
 	// Cek response status
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return "", fmt.Errorf("gagal upload file ke Appwrite: %s", string(respBody))
+		return "", fmt.Errorf("gagal upload file ke Appwrite: HTTP %d - %s", resp.StatusCode, string(respBody))
 	}
-
-	// Simpan informasi file di database
-	// Format: fileID|fileName agar kita bisa mengakses dan hapus file di Appwrite nanti
-	gambarInfo := fmt.Sprintf("%s|%s", fileID, fileName)
-	existingItem.Gambar = gambarInfo
+	
+	// Buat URL view untuk gambar
+	viewURL := fmt.Sprintf("%s/storage/buckets/%s/files/%s/view", 
+		appwriteEndpoint,
+		bucketID,
+		fileID)
+	
+	// Simpan URL gambar di database
+	existingItem.Gambar = viewURL
 	if err := s.itemRepo.Update(ctx, existingItem); err != nil {
 		return "", err
 	}
-
+	
+	// Return format fileID|fileName|viewURL untuk penggunaan di handler
+	gambarInfo := fmt.Sprintf("%s|%s|%s", fileID, fileName, viewURL)
 	return gambarInfo, nil
 }

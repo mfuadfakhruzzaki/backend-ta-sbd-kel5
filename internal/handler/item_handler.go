@@ -34,50 +34,92 @@ func (h *ItemHandler) CreateItem(c *gin.Context) {
 		return
 	}
 
-	// Bind data item
-	var itemData struct {
-		NamaBarang string               `json:"nama_barang" binding:"required"`
-		Harga      float64              `json:"harga" binding:"required,gt=0"`
-		Kategori   domain.ItemCategory  `json:"kategori" binding:"required,oneof=Buku Elektronik Perabotan Kos-kosan Lainnya"`
-		Deskripsi  string               `json:"deskripsi"`
-	}
-	
-	// Binding JSON
-	if err := c.ShouldBindJSON(&itemData); err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "Gagal membaca data: "+err.Error(), nil)
-		return
-	}
-	
-	// Validasi manual
-	if itemData.NamaBarang == "" {
-		utils.ErrorResponse(c, http.StatusBadRequest, "Nama barang tidak boleh kosong", nil)
-		return
-	}
-	
-	if itemData.Harga <= 0 {
-		utils.ErrorResponse(c, http.StatusBadRequest, "Harga harus lebih dari 0", nil)
-		return
-	}
-	
-	if itemData.Kategori == "" {
-		utils.ErrorResponse(c, http.StatusBadRequest, "Kategori tidak boleh kosong", nil)
-		return
+	// Cek apakah ada file gambar yang dikirim
+	var hasImage bool
+	_, err := c.FormFile("gambar")
+	if err == nil {
+		hasImage = true
 	}
 
-	// Buat objek item
-	item := &domain.Item{
-		NamaBarang: itemData.NamaBarang,
-		Harga:      itemData.Harga,
-		Kategori:   itemData.Kategori,
-		Deskripsi:  itemData.Deskripsi,
-		Status:     domain.StatusTersedia, // Default status
+	var itemData domain.Item
+	
+	// Jika ada file, gunakan FormValue untuk membaca data lainnya
+	if hasImage {
+		// Binding dari form
+		itemData.NamaBarang = c.PostForm("nama_barang")
+		hargaStr := c.PostForm("harga")
+		harga, err := strconv.ParseFloat(hargaStr, 64)
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Harga harus berupa angka", nil)
+			return
+		}
+		itemData.Harga = harga
+		itemData.Kategori = domain.ItemCategory(c.PostForm("kategori"))
+		itemData.Deskripsi = c.PostForm("deskripsi")
+		
+		// Validasi manual
+		if itemData.NamaBarang == "" {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Nama barang tidak boleh kosong", nil)
+			return
+		}
+		
+		if itemData.Harga <= 0 {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Harga harus lebih dari 0", nil)
+			return
+		}
+		
+		if itemData.Kategori == "" {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Kategori tidak boleh kosong", nil)
+			return
+		}
+	} else {
+		// Binding JSON jika tidak ada gambar
+		if err := c.ShouldBindJSON(&itemData); err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Gagal membaca data: "+err.Error(), nil)
+			return
+		}
+		
+		// Validasi manual
+		if itemData.NamaBarang == "" {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Nama barang tidak boleh kosong", nil)
+			return
+		}
+		
+		if itemData.Harga <= 0 {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Harga harus lebih dari 0", nil)
+			return
+		}
+		
+		if itemData.Kategori == "" {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Kategori tidak boleh kosong", nil)
+			return
+		}
 	}
+
+	// Set status default
+	itemData.Status = domain.StatusTersedia
 
 	// Buat barang baru
-	newItem, err := h.itemService.Create(c.Request.Context(), item, userID.(uint))
+	newItem, err := h.itemService.Create(c.Request.Context(), &itemData, userID.(uint))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
+	}
+
+	// Jika ada gambar, upload setelah item dibuat
+	if hasImage {
+		// Upload gambar dengan ID item yang baru dibuat
+		fileInfo, err := h.itemService.UploadImage(c, newItem.ID, userID.(uint))
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Barang berhasil dibuat tetapi gagal mengupload gambar: "+err.Error(), newItem)
+			return
+		}
+		
+		// Ambil URL gambar dari response
+		parts := strings.Split(fileInfo, "|")
+		if len(parts) > 2 {
+			newItem.Gambar = parts[2] // URL gambar
+		}
 	}
 
 	utils.SuccessResponse(c, http.StatusCreated, "Barang berhasil ditambahkan", newItem)
@@ -376,28 +418,40 @@ func (h *ItemHandler) UploadItemImage(c *gin.Context) {
 		return
 	}
 
-	// Parse fileInfo to get fileID and fileName
+	// Parse fileInfo to get fileID, fileName, and viewURL
 	parts := strings.Split(fileInfo, "|")
 	fileID := parts[0]
-	fileName := fileInfo
+	fileName := parts[0]
+	var viewURL string
+	
 	if len(parts) > 1 {
 		fileName = parts[1]
 	}
-
-	// Get Appwrite config for creating URLs
-	appwriteConfig, err := config.LoadConfig()
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "Gagal memuat konfigurasi", nil)
-		return
-	}
-
-	// Create file view URL
-	appwriteEndpoint := appwriteConfig.Appwrite.Endpoint
 	
-	viewURL := fmt.Sprintf("%s/storage/buckets/%s/files/%s/view", 
-		appwriteEndpoint,
-		appwriteConfig.Appwrite.BucketID,
-		fileID)
+	if len(parts) > 2 {
+		viewURL = parts[2]
+	} else {
+		// Get Appwrite config for creating URLs if not included in response
+		appwriteConfig, err := config.LoadConfig()
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Gagal memuat konfigurasi", nil)
+			return
+		}
+
+		// Create file view URL
+		appwriteEndpoint := appwriteConfig.Appwrite.Endpoint
+		
+		// Debug logs for troubleshooting
+		fmt.Printf("Appwrite View URL: %s\n", appwriteEndpoint)
+		fmt.Printf("Project ID: %s\n", appwriteConfig.Appwrite.ProjectID)
+		fmt.Printf("Bucket ID: %s\n", appwriteConfig.Appwrite.BucketID)
+		fmt.Printf("File ID: %s\n", fileID)
+		
+		viewURL = fmt.Sprintf("%s/storage/buckets/%s/files/%s/view", 
+			appwriteEndpoint,
+			appwriteConfig.Appwrite.BucketID,
+			fileID)
+	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Gambar berhasil diupload", gin.H{
 		"file_name": fileName,
