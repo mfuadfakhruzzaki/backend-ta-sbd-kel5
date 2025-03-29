@@ -369,11 +369,14 @@ func (s *itemService) UploadImage(ctx *gin.Context, itemID uint, userID uint) (s
 		return "", fmt.Errorf("gagal upload file ke Appwrite: HTTP %d - %s", resp.StatusCode, string(respBody))
 	}
 	
-	// Buat URL view untuk gambar
-	viewURL := fmt.Sprintf("%s/storage/buckets/%s/files/%s/view", 
+	// Buat URL view untuk gambar - menggunakan format yang dapat diakses publik
+	viewURL := fmt.Sprintf("%s/storage/buckets/%s/files/%s/view?project=%s", 
 		appwriteEndpoint,
 		bucketID,
-		fileID)
+		fileID,
+		projectID)
+		
+	fmt.Printf("View URL: %s\n", viewURL)
 	
 	// Simpan URL gambar di database
 	existingItem.Gambar = viewURL

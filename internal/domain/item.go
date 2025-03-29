@@ -1,6 +1,9 @@
 package domain
 
 import (
+	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -63,6 +66,31 @@ type ItemResponse struct {
 
 // ToResponse mengubah Item ke ItemResponse
 func (i *Item) ToResponse(includePenjual bool) ItemResponse {
+	var gambarURL string
+	
+	// Fix URL gambar jika perlu (pastikan URL memiliki parameter project)
+	if i.Gambar != "" {
+		gambarURL = i.Gambar
+		// Jika URL gambar berasal dari Appwrite tapi belum memiliki parameter project
+		if strings.Contains(gambarURL, "/storage/buckets/") && !strings.Contains(gambarURL, "?project=") {
+			// Cari projectID dari config
+			if strings.Contains(gambarURL, "/files/") {
+				parts := strings.Split(gambarURL, "/files/")
+				if len(parts) > 1 {
+					fileIDParts := strings.Split(parts[1], "/")
+					if len(fileIDParts) > 0 {
+						// Use environment variable or default project ID
+						projectID := os.Getenv("APPWRITE_PROJECT_ID")
+						if projectID == "" {
+							projectID = "67e7bbfb003b2a88a380" // Default project ID
+						}
+						gambarURL = fmt.Sprintf("%s?project=%s", gambarURL, projectID)
+					}
+				}
+			}
+		}
+	}
+	
 	response := ItemResponse{
 		ID:         i.ID,
 		PenjualID:  i.PenjualID,
@@ -70,7 +98,7 @@ func (i *Item) ToResponse(includePenjual bool) ItemResponse {
 		Harga:      i.Harga,
 		Kategori:   i.Kategori,
 		Deskripsi:  i.Deskripsi,
-		Gambar:     i.Gambar,
+		Gambar:     gambarURL,
 		Status:     i.Status,
 		CreatedAt:  i.CreatedAt,
 	}

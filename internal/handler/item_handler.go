@@ -440,17 +440,20 @@ func (h *ItemHandler) UploadItemImage(c *gin.Context) {
 
 		// Create file view URL
 		appwriteEndpoint := appwriteConfig.Appwrite.Endpoint
+		projectID := appwriteConfig.Appwrite.ProjectID
+		bucketID := appwriteConfig.Appwrite.BucketID
 		
 		// Debug logs for troubleshooting
 		fmt.Printf("Appwrite View URL: %s\n", appwriteEndpoint)
-		fmt.Printf("Project ID: %s\n", appwriteConfig.Appwrite.ProjectID)
-		fmt.Printf("Bucket ID: %s\n", appwriteConfig.Appwrite.BucketID)
+		fmt.Printf("Project ID: %s\n", projectID)
+		fmt.Printf("Bucket ID: %s\n", bucketID)
 		fmt.Printf("File ID: %s\n", fileID)
 		
-		viewURL = fmt.Sprintf("%s/storage/buckets/%s/files/%s/view", 
+		viewURL = fmt.Sprintf("%s/storage/buckets/%s/files/%s/view?project=%s", 
 			appwriteEndpoint,
-			appwriteConfig.Appwrite.BucketID,
-			fileID)
+			bucketID,
+			fileID,
+			projectID)
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Gambar berhasil diupload", gin.H{
