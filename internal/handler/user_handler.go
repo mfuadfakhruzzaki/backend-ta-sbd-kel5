@@ -23,6 +23,18 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 }
 
 // GetUser mendapatkan data pengguna berdasarkan ID
+// @Summary      Get user by ID
+// @Description  Mendapatkan detail pengguna berdasarkan ID
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "User ID"
+// @Security     BearerAuth
+// @Success      200  {object}  utils.StandardResponse{data=domain.UserResponse}
+// @Failure      400  {object}  utils.StandardResponse
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      404  {object}  utils.StandardResponse
+// @Router       /users/{id} [get]
 func (h *UserHandler) GetUser(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")
@@ -43,6 +55,16 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 }
 
 // GetCurrentUser mendapatkan data pengguna yang sedang login
+// @Summary      Get current user
+// @Description  Mendapatkan detail pengguna yang sedang login
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  utils.StandardResponse{data=domain.UserResponse}
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      404  {object}  utils.StandardResponse
+// @Router       /users/me [get]
 func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 	// Dapatkan user ID dari context
 	userID, exists := c.Get("userID")
@@ -62,6 +84,20 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 }
 
 // GetAllUsers mendapatkan daftar pengguna
+// @Summary      List all users
+// @Description  Mendapatkan daftar pengguna dengan paginasi (admin only)
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        page    query    int     false  "Page number (default: 1)"
+// @Param        limit   query    int     false  "Items per page (default: 10)"
+// @Param        search  query    string  false  "Search query"
+// @Security     BearerAuth
+// @Success      200     {object}  utils.PaginatedResponse{data=[]domain.UserResponse}
+// @Failure      401     {object}  utils.StandardResponse
+// @Failure      403     {object}  utils.StandardResponse
+// @Failure      500     {object}  utils.StandardResponse
+// @Router       /users [get]
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
 	// Dapatkan parameter paginasi
 	pageStr := c.DefaultQuery("page", "1")
@@ -95,6 +131,21 @@ func (h *UserHandler) GetAllUsers(c *gin.Context) {
 }
 
 // UpdateUser memperbarui data pengguna
+// @Summary      Update user
+// @Description  Memperbarui data pengguna
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        id       path      int                true  "User ID"
+// @Param        request  body      domain.UpdateUserRequest  true  "User update data"
+// @Security     BearerAuth
+// @Success      200      {object}  utils.StandardResponse{data=domain.UserResponse}
+// @Failure      400      {object}  utils.StandardResponse
+// @Failure      401      {object}  utils.StandardResponse
+// @Failure      403      {object}  utils.StandardResponse
+// @Failure      404      {object}  utils.StandardResponse
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /users/{id} [patch]
 func (h *UserHandler) UpdateUser(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")
@@ -150,6 +201,19 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 }
 
 // DeleteUser menghapus pengguna
+// @Summary      Delete user
+// @Description  Menghapus pengguna berdasarkan ID (self atau admin)
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        id  path      int  true  "User ID"
+// @Security     BearerAuth
+// @Success      200  {object}  utils.StandardResponse
+// @Failure      400  {object}  utils.StandardResponse
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      403  {object}  utils.StandardResponse
+// @Failure      500  {object}  utils.StandardResponse
+// @Router       /users/{id} [delete]
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")

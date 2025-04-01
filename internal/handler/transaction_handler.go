@@ -11,6 +11,8 @@ import (
 )
 
 // TransactionHandler menangani endpoint terkait transaksi
+// @Summary      Transactions handler
+// @Description  Menangani endpoint terkait transaksi
 type TransactionHandler struct {
 	transactionService service.TransactionService
 }
@@ -23,6 +25,18 @@ func NewTransactionHandler(transactionService service.TransactionService) *Trans
 }
 
 // CreateTransaction membuat transaksi baru
+// @Summary      Create a transaction
+// @Description  Membuat transaksi baru untuk pembelian barang
+// @Tags         transactions
+// @Accept       json
+// @Produce      json
+// @Param        request  body      domain.CreateTransactionRequest  true  "Transaction data"
+// @Security     BearerAuth
+// @Success      201      {object}  utils.StandardResponse{data=domain.TransactionResponse}
+// @Failure      400      {object}  utils.StandardResponse
+// @Failure      401      {object}  utils.StandardResponse
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /transactions [post]
 func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 	// Dapatkan user ID dari context
 	userID, exists := c.Get("userID")
@@ -65,6 +79,18 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 }
 
 // GetTransaction mendapatkan data transaksi berdasarkan ID
+// @Summary      Get transaction by ID
+// @Description  Mendapatkan detail transaksi berdasarkan ID
+// @Tags         transactions
+// @Accept       json
+// @Produce      json
+// @Param        id  path      int  true  "Transaction ID"
+// @Security     BearerAuth
+// @Success      200  {object}  utils.StandardResponse{data=domain.TransactionResponse}
+// @Failure      400  {object}  utils.StandardResponse
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      404  {object}  utils.StandardResponse
+// @Router       /transactions/{id} [get]
 func (h *TransactionHandler) GetTransaction(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")
@@ -92,6 +118,19 @@ func (h *TransactionHandler) GetTransaction(c *gin.Context) {
 }
 
 // GetAllTransactions mendapatkan semua transaksi (admin only)
+// @Summary      List all transactions
+// @Description  Mendapatkan daftar semua transaksi (admin only)
+// @Tags         transactions
+// @Accept       json
+// @Produce      json
+// @Param        page   query    int  false  "Page number (default: 1)"
+// @Param        limit  query    int  false  "Items per page (default: 10)"
+// @Security     BearerAuth
+// @Success      200    {object}  utils.PaginatedResponse{data=[]domain.TransactionResponse}
+// @Failure      401    {object}  utils.StandardResponse
+// @Failure      403    {object}  utils.StandardResponse
+// @Failure      500    {object}  utils.StandardResponse
+// @Router       /transactions [get]
 func (h *TransactionHandler) GetAllTransactions(c *gin.Context) {
 	// Cek role dari context
 	role, exists := c.Get("userRole")
@@ -131,6 +170,18 @@ func (h *TransactionHandler) GetAllTransactions(c *gin.Context) {
 }
 
 // GetMyTransactionsAsPembeli mendapatkan daftar transaksi sebagai pembeli
+// @Summary      Get my transactions as buyer
+// @Description  Mendapatkan daftar transaksi dimana user adalah pembeli
+// @Tags         transactions
+// @Accept       json
+// @Produce      json
+// @Param        page   query    int  false  "Page number (default: 1)"
+// @Param        limit  query    int  false  "Items per page (default: 10)"
+// @Security     BearerAuth
+// @Success      200    {object}  utils.PaginatedResponse{data=[]domain.TransactionResponse}
+// @Failure      401    {object}  utils.StandardResponse
+// @Failure      500    {object}  utils.StandardResponse
+// @Router       /transactions/as-pembeli [get]
 func (h *TransactionHandler) GetMyTransactionsAsPembeli(c *gin.Context) {
 	// Dapatkan user ID dari context
 	userID, exists := c.Get("userID")
@@ -170,6 +221,18 @@ func (h *TransactionHandler) GetMyTransactionsAsPembeli(c *gin.Context) {
 }
 
 // GetMyTransactionsAsPenjual mendapatkan daftar transaksi sebagai penjual
+// @Summary      Get my transactions as seller
+// @Description  Mendapatkan daftar transaksi dimana user adalah penjual
+// @Tags         transactions
+// @Accept       json
+// @Produce      json
+// @Param        page   query    int  false  "Page number (default: 1)"
+// @Param        limit  query    int  false  "Items per page (default: 10)"
+// @Security     BearerAuth
+// @Success      200    {object}  utils.PaginatedResponse{data=[]domain.TransactionResponse}
+// @Failure      401    {object}  utils.StandardResponse
+// @Failure      500    {object}  utils.StandardResponse
+// @Router       /transactions/as-penjual [get]
 func (h *TransactionHandler) GetMyTransactionsAsPenjual(c *gin.Context) {
 	// Dapatkan user ID dari context
 	userID, exists := c.Get("userID")
@@ -209,6 +272,21 @@ func (h *TransactionHandler) GetMyTransactionsAsPenjual(c *gin.Context) {
 }
 
 // UpdateTransactionStatus memperbarui status transaksi
+// @Summary      Update transaction status
+// @Description  Memperbarui status transaksi (Pending, Selesai, Dibatalkan)
+// @Tags         transactions
+// @Accept       json
+// @Produce      json
+// @Param        id       path      int                              true  "Transaction ID"
+// @Param        request  body      domain.UpdateTransactionStatusRequest  true  "Transaction status data"
+// @Security     BearerAuth
+// @Success      200      {object}  utils.StandardResponse
+// @Failure      400      {object}  utils.StandardResponse
+// @Failure      401      {object}  utils.StandardResponse
+// @Failure      403      {object}  utils.StandardResponse
+// @Failure      404      {object}  utils.StandardResponse
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /transactions/{id}/status [patch]
 func (h *TransactionHandler) UpdateTransactionStatus(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")
@@ -252,6 +330,20 @@ func (h *TransactionHandler) UpdateTransactionStatus(c *gin.Context) {
 }
 
 // DeleteTransaction menghapus transaksi
+// @Summary      Delete transaction
+// @Description  Menghapus transaksi berdasarkan ID
+// @Tags         transactions
+// @Accept       json
+// @Produce      json
+// @Param        id  path      int  true  "Transaction ID"
+// @Security     BearerAuth
+// @Success      200  {object}  utils.StandardResponse
+// @Failure      400  {object}  utils.StandardResponse
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      403  {object}  utils.StandardResponse
+// @Failure      404  {object}  utils.StandardResponse
+// @Failure      500  {object}  utils.StandardResponse
+// @Router       /transactions/{id} [delete]
 func (h *TransactionHandler) DeleteTransaction(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")

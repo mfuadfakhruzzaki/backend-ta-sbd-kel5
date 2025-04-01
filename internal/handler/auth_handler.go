@@ -10,6 +10,8 @@ import (
 )
 
 // AuthHandler menangani endpoint terkait otentikasi
+// @Summary      Authentication handler
+// @Description  Menangani endpoint terkait otentikasi pengguna
 type AuthHandler struct {
 	authService service.AuthService
 }
@@ -27,8 +29,8 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        request  body      domain.RegisterRequest  true  "User registration data"
-// @Success      201      {object}  utils.StandardResponse{data=domain.RegisterResponse}
+// @Param        request  body      domain.RegisterRequestSwagger  true  "User registration data"
+// @Success      201      {object}  utils.StandardResponse{data=domain.RegisterResponseSwagger}
 // @Failure      400      {object}  utils.StandardResponse
 // @Failure      500      {object}  utils.StandardResponse
 // @Router       /auth/register [post]
@@ -101,8 +103,8 @@ func (h *AuthHandler) RegisterUser(c *gin.Context) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        request  body      domain.LoginRequest  true  "User login credentials"
-// @Success      200      {object}  utils.StandardResponse{data=domain.LoginResponse}
+// @Param        request  body      domain.LoginRequestSwagger  true  "User login credentials"
+// @Success      200      {object}  utils.StandardResponse{data=domain.LoginResponseSwagger}
 // @Failure      400      {object}  utils.StandardResponse
 // @Failure      401      {object}  utils.StandardResponse
 // @Failure      500      {object}  utils.StandardResponse
@@ -144,7 +146,56 @@ func (h *AuthHandler) LoginUser(c *gin.Context) {
 	})
 }
 
+// RefreshToken memperbaharui token akses
+// @Summary      Refresh access token
+// @Description  Mendapatkan token akses baru menggunakan refresh token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      domain.RefreshTokenRequestSwagger  true  "Refresh token data"
+// @Success      200      {object}  utils.StandardResponse{data=domain.RefreshTokenResponseSwagger}
+// @Failure      400      {object}  utils.StandardResponse
+// @Failure      401      {object}  utils.StandardResponse
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /auth/refresh [post]
+func (h *AuthHandler) RefreshToken(c *gin.Context) {
+	// ... existing code ...
+}
+
+// Logout menangani proses logout pengguna
+// @Summary      Logout user
+// @Description  Melakukan logout dan invalidasi token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  utils.StandardResponse
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      500  {object}  utils.StandardResponse
+// @Router       /auth/logout [post]
+func (h *AuthHandler) Logout(c *gin.Context) {
+	// ... existing code ...
+}
+
+// ResetPassword mengirim email untuk reset password
+// @Summary      Reset password
+// @Description  Mengirim email untuk reset password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      domain.ResetPasswordRequestSwagger  true  "Reset password data"
+// @Success      200      {object}  utils.StandardResponse
+// @Failure      400      {object}  utils.StandardResponse
+// @Failure      404      {object}  utils.StandardResponse
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /auth/reset-password [post]
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	// ... existing code ...
+}
+
 // RegisterRoutes mendaftarkan route untuk AuthHandler
+// @Summary      Register auth routes
+// @Description  Mendaftarkan semua route untuk autentikasi
 func (h *AuthHandler) RegisterRoutes(router *gin.RouterGroup) {
 	auth := router.Group("/auth")
 	{

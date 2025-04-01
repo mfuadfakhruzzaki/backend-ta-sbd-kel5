@@ -232,6 +232,18 @@ func (h *ItemHandler) GetAllItems(c *gin.Context) {
 }
 
 // GetItemsByPenjual mendapatkan daftar barang berdasarkan penjual
+// @Summary      Get items by seller
+// @Description  Mendapatkan daftar barang berdasarkan ID penjual
+// @Tags         items
+// @Accept       json
+// @Produce      json
+// @Param        id       path      int     true   "Seller ID"
+// @Param        page     query     int     false  "Page number (default: 1)"
+// @Param        limit    query     int     false  "Items per page (default: 10)"
+// @Success      200      {object}  utils.PaginatedResponse{data=[]domain.ItemResponse}
+// @Failure      400      {object}  utils.StandardResponse
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /items/penjual/{id} [get]
 func (h *ItemHandler) GetItemsByPenjual(c *gin.Context) {
 	// Dapatkan ID penjual dari URL
 	idStr := c.Param("id")
@@ -272,6 +284,18 @@ func (h *ItemHandler) GetItemsByPenjual(c *gin.Context) {
 }
 
 // GetMyItems mendapatkan daftar barang milik pengguna yang login
+// @Summary      Get my items
+// @Description  Mendapatkan daftar barang milik pengguna yang sedang login
+// @Tags         items
+// @Accept       json
+// @Produce      json
+// @Param        page     query     int     false  "Page number (default: 1)"
+// @Param        limit    query     int     false  "Items per page (default: 10)"
+// @Security     BearerAuth
+// @Success      200      {object}  utils.PaginatedResponse{data=[]domain.ItemResponse}
+// @Failure      401      {object}  utils.StandardResponse
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /items/my [get]
 func (h *ItemHandler) GetMyItems(c *gin.Context) {
 	// Dapatkan user ID dari context
 	userID, exists := c.Get("userID")
@@ -381,6 +405,21 @@ func (h *ItemHandler) UpdateItem(c *gin.Context) {
 }
 
 // UpdateItemStatus memperbarui status barang
+// @Summary      Update item status
+// @Description  Memperbarui status barang (Tersedia, Terjual, Dihapus)
+// @Tags         items
+// @Accept       json
+// @Produce      json
+// @Param        id       path      int                           true  "Item ID"
+// @Param        request  body      domain.UpdateItemStatusRequest  true  "Item status data"
+// @Security     BearerAuth
+// @Success      200      {object}  utils.StandardResponse
+// @Failure      400      {object}  utils.StandardResponse
+// @Failure      401      {object}  utils.StandardResponse
+// @Failure      403      {object}  utils.StandardResponse
+// @Failure      404      {object}  utils.StandardResponse
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /items/{id}/status [patch]
 func (h *ItemHandler) UpdateItemStatus(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")

@@ -11,6 +11,8 @@ import (
 )
 
 // ChatHandler menangani endpoint terkait chat
+// @Summary      Chat handler
+// @Description  Menangani endpoint terkait chat dan pesan
 type ChatHandler struct {
 	chatService service.ChatService
 }
@@ -23,6 +25,18 @@ func NewChatHandler(chatService service.ChatService) *ChatHandler {
 }
 
 // SendMessage mengirim pesan chat baru
+// @Summary      Send message
+// @Description  Mengirim pesan chat baru
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Param        request  body      domain.SendMessageRequestSwagger  true  "Message data"
+// @Security     BearerAuth
+// @Success      201      {object}  utils.StandardResponse{data=domain.ChatResponseSwagger}
+// @Failure      400      {object}  utils.StandardResponse
+// @Failure      401      {object}  utils.StandardResponse
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /chats [post]
 func (h *ChatHandler) SendMessage(c *gin.Context) {
 	// Dapatkan user ID dari context
 	userID, exists := c.Get("userID")
@@ -79,6 +93,18 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 }
 
 // GetChat mendapatkan data chat berdasarkan ID
+// @Summary      Get chat by ID
+// @Description  Mendapatkan detail chat berdasarkan ID
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "Chat ID"
+// @Security     BearerAuth
+// @Success      200  {object}  utils.StandardResponse{data=domain.ChatResponseSwagger}
+// @Failure      400  {object}  utils.StandardResponse
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      404  {object}  utils.StandardResponse
+// @Router       /chats/{id} [get]
 func (h *ChatHandler) GetChat(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")
@@ -106,6 +132,20 @@ func (h *ChatHandler) GetChat(c *gin.Context) {
 }
 
 // GetChatsByBarang mendapatkan daftar chat berdasarkan ID barang
+// @Summary      Get chats by item ID
+// @Description  Mendapatkan daftar chat yang terkait dengan barang tertentu
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Param        id     path      int  true   "Item ID"
+// @Param        page   query     int  false  "Page number (default: 1)"
+// @Param        limit  query     int  false  "Items per page (default: 10)"
+// @Security     BearerAuth
+// @Success      200    {object}  utils.PaginatedResponse{data=[]domain.ChatResponseSwagger}
+// @Failure      400    {object}  utils.StandardResponse
+// @Failure      401    {object}  utils.StandardResponse
+// @Failure      500    {object}  utils.StandardResponse
+// @Router       /chats/barang/{id} [get]
 func (h *ChatHandler) GetChatsByBarang(c *gin.Context) {
 	// Dapatkan ID barang dari URL
 	barangIDStr := c.Param("id")
@@ -152,7 +192,22 @@ func (h *ChatHandler) GetChatsByBarang(c *gin.Context) {
 	})
 }
 
-// GetConversation mendapatkan percakapan antara dua pengguna untuk barang tertentu
+// GetConversation mendapatkan percakapan antara dua pengguna tentang suatu barang
+// @Summary      Get conversation
+// @Description  Mendapatkan percakapan antara dua pengguna tentang barang tertentu
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Param        partner_id  query     int  true   "Partner user ID"
+// @Param        barang_id   query     int  true   "Item ID"
+// @Param        page        query     int  false  "Page number (default: 1)"
+// @Param        limit       query     int  false  "Items per page (default: 10)"
+// @Security     BearerAuth
+// @Success      200         {object}  utils.PaginatedResponse{data=[]domain.ChatResponseSwagger}
+// @Failure      400         {object}  utils.StandardResponse
+// @Failure      401         {object}  utils.StandardResponse
+// @Failure      500         {object}  utils.StandardResponse
+// @Router       /chats/conversation [get]
 func (h *ChatHandler) GetConversation(c *gin.Context) {
 	// Dapatkan ID pengirim dan penerima dari query
 	penerimaIDStr := c.Query("penerima_id")
@@ -214,7 +269,17 @@ func (h *ChatHandler) GetConversation(c *gin.Context) {
 	})
 }
 
-// GetChatPartners mendapatkan daftar partner chat
+// GetChatPartners mendapatkan daftar pengguna yang pernah chat dengan pengguna saat ini
+// @Summary      Get chat partners
+// @Description  Mendapatkan daftar pengguna yang pernah berkomunikasi dengan pengguna saat ini
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  utils.StandardResponse{data=[]domain.ChatPartnerResponseSwagger}
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      500  {object}  utils.StandardResponse
+// @Router       /chats/partners [get]
 func (h *ChatHandler) GetChatPartners(c *gin.Context) {
 	// Dapatkan user ID dari context
 	userID, exists := c.Get("userID")
@@ -233,7 +298,20 @@ func (h *ChatHandler) GetChatPartners(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Daftar partner chat berhasil diambil", users)
 }
 
-// MarkAsRead menandai pesan sebagai telah dibaca
+// MarkAsRead menandai pesan chat sebagai telah dibaca
+// @Summary      Mark message as read
+// @Description  Menandai pesan chat sebagai telah dibaca
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Param        id  path      int  true  "Chat ID"
+// @Security     BearerAuth
+// @Success      200  {object}  utils.StandardResponse
+// @Failure      400  {object}  utils.StandardResponse
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      404  {object}  utils.StandardResponse
+// @Failure      500  {object}  utils.StandardResponse
+// @Router       /chats/{id}/read [patch]
 func (h *ChatHandler) MarkAsRead(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")
@@ -259,7 +337,19 @@ func (h *ChatHandler) MarkAsRead(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Pesan ditandai sebagai dibaca", nil)
 }
 
-// DeleteChat menghapus chat
+// DeleteChat menghapus pesan chat
+// @Summary      Delete chat
+// @Description  Menghapus pesan chat berdasarkan ID
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Param        id  path      int  true  "Chat ID"
+// @Security     BearerAuth
+// @Success      200  {object}  utils.StandardResponse
+// @Failure      400  {object}  utils.StandardResponse
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      500  {object}  utils.StandardResponse
+// @Router       /chats/{id} [delete]
 func (h *ChatHandler) DeleteChat(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")
