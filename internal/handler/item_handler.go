@@ -27,6 +27,22 @@ func NewItemHandler(itemService service.ItemService) *ItemHandler {
 }
 
 // CreateItem menambahkan barang baru
+// @Summary      Create a new item
+// @Description  Tambahkan barang baru dengan atau tanpa gambar
+// @Tags         items
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        nama_barang  formData  string  true   "Nama barang"
+// @Param        harga        formData  number  true   "Harga barang"
+// @Param        kategori     formData  string  true   "Kategori barang (Buku, Elektronik, Perabotan, Kos-kosan, Lainnya)"
+// @Param        deskripsi    formData  string  false  "Deskripsi barang"
+// @Param        gambar       formData  file    false  "File gambar barang"
+// @Security     BearerAuth
+// @Success      201  {object}  utils.StandardResponse{data=domain.ItemResponse}
+// @Failure      400  {object}  utils.StandardResponse
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      500  {object}  utils.StandardResponse
+// @Router       /items [post]
 func (h *ItemHandler) CreateItem(c *gin.Context) {
 	// Dapatkan user ID dari context
 	userID, exists := c.Get("userID")
@@ -132,12 +148,23 @@ func (h *ItemHandler) CreateItem(c *gin.Context) {
 }
 
 // GetItem mendapatkan data barang berdasarkan ID
+// @Summary      Get item by ID
+// @Description  Mendapatkan detail barang berdasarkan ID
+// @Tags         items
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "Item ID"
+// @Success      200  {object}  utils.StandardResponse{data=domain.ItemResponse}
+// @Failure      400  {object}  utils.StandardResponse
+// @Failure      404  {object}  utils.StandardResponse
+// @Failure      500  {object}  utils.StandardResponse
+// @Router       /items/{id} [get]
 func (h *ItemHandler) GetItem(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		// Use custom error type instead of utils.ErrorResponse
+		// Use custom error types
 		err = errors.ValidationError("ID barang tidak valid", err)
 		_ = c.Error(err)
 		return
@@ -146,7 +173,7 @@ func (h *ItemHandler) GetItem(c *gin.Context) {
 	// Dapatkan data barang
 	item, err := h.itemService.GetByID(c.Request.Context(), uint(id))
 	if err != nil {
-		// Use custom error type instead of utils.ErrorResponse
+		// Use custom error types
 		err = errors.NotFoundError("Barang tidak ditemukan", err).
 			WithMetadata("itemID", id)
 		_ = c.Error(err)
@@ -157,6 +184,19 @@ func (h *ItemHandler) GetItem(c *gin.Context) {
 }
 
 // GetAllItems mendapatkan daftar barang
+// @Summary      List all items
+// @Description  Mendapatkan daftar barang dengan paginasi dan filter
+// @Tags         items
+// @Accept       json
+// @Produce      json
+// @Param        page     query     int     false  "Page number (default: 1)"
+// @Param        limit    query     int     false  "Items per page (default: 10)"
+// @Param        search   query     string  false  "Search query"
+// @Param        kategori query     string  false  "Filter by category"
+// @Param        status   query     string  false  "Filter by status"
+// @Success      200      {object}  utils.PaginatedResponse{data=[]domain.ItemResponse}
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /items [get]
 func (h *ItemHandler) GetAllItems(c *gin.Context) {
 	// Dapatkan parameter paginasi dan filter
 	pageStr := c.DefaultQuery("page", "1")
@@ -271,6 +311,21 @@ func (h *ItemHandler) GetMyItems(c *gin.Context) {
 }
 
 // UpdateItem memperbarui data barang
+// @Summary      Update an item
+// @Description  Memperbarui data barang berdasarkan ID
+// @Tags         items
+// @Accept       json
+// @Produce      json
+// @Param        id       path      int                     true  "Item ID"
+// @Param        request  body      domain.UpdateItemRequest  true  "Item update data"
+// @Security     BearerAuth
+// @Success      200      {object}  utils.StandardResponse{data=domain.ItemResponse}
+// @Failure      400      {object}  utils.StandardResponse
+// @Failure      401      {object}  utils.StandardResponse
+// @Failure      403      {object}  utils.StandardResponse
+// @Failure      404      {object}  utils.StandardResponse
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /items/{id} [patch]
 func (h *ItemHandler) UpdateItem(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")
@@ -363,6 +418,18 @@ func (h *ItemHandler) UpdateItemStatus(c *gin.Context) {
 }
 
 // DeleteItem menghapus barang
+// @Summary      Delete an item
+// @Description  Menghapus barang berdasarkan ID
+// @Tags         items
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "Item ID"
+// @Security     BearerAuth
+// @Success      200  {object}  utils.StandardResponse
+// @Failure      400  {object}  utils.StandardResponse
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      500  {object}  utils.StandardResponse
+// @Router       /items/{id} [delete]
 func (h *ItemHandler) DeleteItem(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")
@@ -426,6 +493,21 @@ func (h *ItemHandler) DeleteItem(c *gin.Context) {
 }
 
 // UploadItemImage mengupload gambar barang
+// @Summary      Upload item image
+// @Description  Mengupload gambar untuk barang
+// @Tags         items
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        id      path      int   true  "Item ID"
+// @Param        gambar  formData  file  true  "Image file"
+// @Security     BearerAuth
+// @Success      200  {object}  utils.StandardResponse{data=domain.UploadImageResponse}
+// @Failure      400  {object}  utils.StandardResponse
+// @Failure      401  {object}  utils.StandardResponse
+// @Failure      403  {object}  utils.StandardResponse
+// @Failure      404  {object}  utils.StandardResponse
+// @Failure      500  {object}  utils.StandardResponse
+// @Router       /items/{id}/upload [post]
 func (h *ItemHandler) UploadItemImage(c *gin.Context) {
 	// Dapatkan ID dari URL
 	idStr := c.Param("id")

@@ -1,0 +1,575 @@
+basePath: /api/v1
+definitions:
+  domain.ItemCategory:
+    enum:
+    - Buku
+    - Elektronik
+    - Perabotan
+    - Kos-kosan
+    - Lainnya
+    type: string
+    x-enum-varnames:
+    - CategoryBuku
+    - CategoryElektronik
+    - CategoryPerabotan
+    - CategoryKosKosan
+    - CategoryLainnya
+  domain.ItemResponse:
+    properties:
+      created_at:
+        type: string
+      deskripsi:
+        type: string
+      gambar:
+        type: string
+      harga:
+        type: number
+      id:
+        type: integer
+      kategori:
+        $ref: '#/definitions/domain.ItemCategory'
+      nama_barang:
+        type: string
+      penjual:
+        $ref: '#/definitions/domain.UserResponse'
+      penjual_id:
+        type: integer
+      status:
+        $ref: '#/definitions/domain.ItemStatus'
+    type: object
+  domain.ItemStatus:
+    enum:
+    - Tersedia
+    - Terjual
+    - Dihapus
+    type: string
+    x-enum-varnames:
+    - StatusTersedia
+    - StatusTerjual
+    - StatusDihapus
+  domain.LoginRequest:
+    properties:
+      email:
+        example: john@example.com
+        type: string
+      password:
+        example: password123
+        type: string
+    type: object
+  domain.LoginResponse:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      user:
+        $ref: '#/definitions/domain.UserPublic'
+    type: object
+  domain.RegisterRequest:
+    properties:
+      alamat:
+        example: Jl. Contoh No. 123
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      nama:
+        example: John Doe
+        type: string
+      no_hp:
+        example: "08123456789"
+        type: string
+      password:
+        example: password123
+        type: string
+    type: object
+  domain.RegisterResponse:
+    properties:
+      user_id:
+        example: 1
+        type: integer
+    type: object
+  domain.Role:
+    enum:
+    - user
+    - admin
+    type: string
+    x-enum-varnames:
+    - RoleUser
+    - RoleAdmin
+  domain.UpdateItemRequest:
+    properties:
+      deskripsi:
+        example: Laptop dalam kondisi baik, baru dipakai 6 bulan
+        type: string
+      harga:
+        example: 9500000
+        type: number
+      kategori:
+        allOf:
+        - $ref: '#/definitions/domain.ItemCategory'
+        example: Elektronik
+      nama_barang:
+        example: Laptop Macbook Pro 2019 M1
+        type: string
+    type: object
+  domain.UploadImageResponse:
+    properties:
+      file_id:
+        example: item_1_1620000000
+        type: string
+      file_name:
+        example: item_1_1620000000.jpg
+        type: string
+      view_url:
+        example: http://endpoint.com/storage/buckets/bucket-id/files/file-id/download?project=project-id
+        type: string
+    type: object
+  domain.UserPublic:
+    properties:
+      alamat:
+        example: Jl. Contoh No. 123
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      id:
+        example: 1
+        type: integer
+      is_active:
+        example: true
+        type: boolean
+      nama:
+        example: John Doe
+        type: string
+      no_hp:
+        example: "08123456789"
+        type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/domain.Role'
+        example: user
+    type: object
+  domain.UserResponse:
+    properties:
+      alamat:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      nama:
+        type: string
+      no_hp:
+        type: string
+      role:
+        $ref: '#/definitions/domain.Role'
+      updated_at:
+        type: string
+    type: object
+  utils.Meta:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total_items:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  utils.PaginatedResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/utils.Meta'
+      success:
+        type: boolean
+    type: object
+  utils.StandardResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@jubel.app
+    name: Jubel API Support
+  description: API untuk aplikasi jual beli barang bekas Jubel
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Jubel API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Melakukan login dan mendapatkan token JWT
+      parameters:
+      - description: User login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/domain.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.LoginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+      summary: Login user
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Mendaftarkan pengguna baru
+      parameters:
+      - description: User registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/domain.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.RegisterResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+      summary: Register new user
+      tags:
+      - auth
+  /items:
+    get:
+      consumes:
+      - application/json
+      description: Mendapatkan daftar barang dengan paginasi dan filter
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: Search query
+        in: query
+        name: search
+        type: string
+      - description: Filter by category
+        in: query
+        name: kategori
+        type: string
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.PaginatedResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.ItemResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+      summary: List all items
+      tags:
+      - items
+    post:
+      consumes:
+      - multipart/form-data
+      description: Tambahkan barang baru dengan atau tanpa gambar
+      parameters:
+      - description: Nama barang
+        in: formData
+        name: nama_barang
+        required: true
+        type: string
+      - description: Harga barang
+        in: formData
+        name: harga
+        required: true
+        type: number
+      - description: Kategori barang (Buku, Elektronik, Perabotan, Kos-kosan, Lainnya)
+        in: formData
+        name: kategori
+        required: true
+        type: string
+      - description: Deskripsi barang
+        in: formData
+        name: deskripsi
+        type: string
+      - description: File gambar barang
+        in: formData
+        name: gambar
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.ItemResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new item
+      tags:
+      - items
+  /items/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Menghapus barang berdasarkan ID
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete an item
+      tags:
+      - items
+    get:
+      consumes:
+      - application/json
+      description: Mendapatkan detail barang berdasarkan ID
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.ItemResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+      summary: Get item by ID
+      tags:
+      - items
+    patch:
+      consumes:
+      - application/json
+      description: Memperbarui data barang berdasarkan ID
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Item update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/domain.UpdateItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.ItemResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+      security:
+      - BearerAuth: []
+      summary: Update an item
+      tags:
+      - items
+  /items/{id}/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Mengupload gambar untuk barang
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Image file
+        in: formData
+        name: gambar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.UploadImageResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.StandardResponse'
+      security:
+      - BearerAuth: []
+      summary: Upload item image
+      tags:
+      - items
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

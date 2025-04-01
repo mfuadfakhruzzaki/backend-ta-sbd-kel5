@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/mfuadfakhruzzaki/jubel/docs/swagger" // Import swagger docs
 	"github.com/mfuadfakhruzzaki/jubel/internal/config"
 	"github.com/mfuadfakhruzzaki/jubel/internal/database"
 	"github.com/mfuadfakhruzzaki/jubel/internal/handler"
@@ -19,10 +20,31 @@ import (
 	"github.com/mfuadfakhruzzaki/jubel/internal/repository"
 	"github.com/mfuadfakhruzzaki/jubel/internal/service"
 	"github.com/rs/zerolog"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
+
+// @title           Jubel API
+// @version         1.0
+// @description     API untuk aplikasi jual beli barang bekas Jubel
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   Jubel API Support
+// @contact.email  support@jubel.app
+
+// @license.name  MIT
+// @license.url   https://opensource.org/licenses/MIT
+
+// @host      localhost:8080
+// @BasePath  /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 
 func main() {
 	// Load konfigurasi
@@ -163,6 +185,9 @@ func setupRouter(cfg *config.Config, db *gorm.DB, logger zerolog.Logger) *gin.En
 	router.Use(middleware.LoggerMiddleware())
 	router.Use(middleware.ErrorMiddleware(routerLogger)) // Add error middleware
 
+	// Swagger docs endpoint
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	// Root path handler
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -170,6 +195,7 @@ func setupRouter(cfg *config.Config, db *gorm.DB, logger zerolog.Logger) *gin.En
 			"description": "Aplikasi Jual Beli Barang Bekas",
 			"version":     "1.0.0",
 			"status":      "running",
+			"docs":        "/swagger/index.html",
 		})
 	})
 

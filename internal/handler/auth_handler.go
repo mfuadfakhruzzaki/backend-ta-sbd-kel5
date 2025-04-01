@@ -22,6 +22,16 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 }
 
 // RegisterUser menangani pendaftaran pengguna baru
+// @Summary      Register new user
+// @Description  Mendaftarkan pengguna baru
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      domain.RegisterRequest  true  "User registration data"
+// @Success      201      {object}  utils.StandardResponse{data=domain.RegisterResponse}
+// @Failure      400      {object}  utils.StandardResponse
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /auth/register [post]
 func (h *AuthHandler) RegisterUser(c *gin.Context) {
 	// Gunakan struct pengguna sederhana tanpa validasi tag
 	var userData struct {
@@ -86,6 +96,17 @@ func (h *AuthHandler) RegisterUser(c *gin.Context) {
 }
 
 // LoginUser menangani login pengguna
+// @Summary      Login user
+// @Description  Melakukan login dan mendapatkan token JWT
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      domain.LoginRequest  true  "User login credentials"
+// @Success      200      {object}  utils.StandardResponse{data=domain.LoginResponse}
+// @Failure      400      {object}  utils.StandardResponse
+// @Failure      401      {object}  utils.StandardResponse
+// @Failure      500      {object}  utils.StandardResponse
+// @Router       /auth/login [post]
 func (h *AuthHandler) LoginUser(c *gin.Context) {
 	// Struct untuk data login
 	var loginData struct {
