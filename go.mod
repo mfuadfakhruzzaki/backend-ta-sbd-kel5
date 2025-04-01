@@ -13,7 +13,6 @@ require (
 )
 
 require (
-	github.com/appwrite/sdk-for-go v0.3.0 // indirect
 	github.com/bytedance/sonic v1.13.2 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
