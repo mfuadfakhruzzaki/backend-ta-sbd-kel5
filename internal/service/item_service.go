@@ -3,7 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
-	"errors"
+	stdErrors "errors"
 	"fmt"
 	"io"
 	"math"
@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mfuadfakhruzzaki/jubel/internal/config"
 	"github.com/mfuadfakhruzzaki/jubel/internal/domain"
+	"github.com/mfuadfakhruzzaki/jubel/internal/errors"
 	"github.com/mfuadfakhruzzaki/jubel/internal/repository"
 )
 
@@ -56,13 +57,13 @@ func (s *itemService) Create(ctx context.Context, item *domain.Item, userID uint
 
 	// Buat barang baru
 	if err := s.itemRepo.Create(ctx, item); err != nil {
-		return nil, err
+		return nil, errors.InternalError("Gagal membuat barang baru", err)
 	}
 
 	// Dapatkan barang yang baru dibuat dengan preload penjual
 	createdItem, err := s.itemRepo.FindByID(ctx, item.ID)
 	if err != nil {
-		return nil, err
+		return nil, errors.InternalError("Gagal mendapatkan data barang yang baru dibuat", err)
 	}
 
 	// Kembalikan response
@@ -74,7 +75,11 @@ func (s *itemService) Create(ctx context.Context, item *domain.Item, userID uint
 func (s *itemService) GetByID(ctx context.Context, id uint) (*domain.ItemResponse, error) {
 	item, err := s.itemRepo.FindByID(ctx, id)
 	if err != nil {
-		return nil, err
+		// Check if it's a not found error
+		if stdErrors.Is(err, stdErrors.New("record not found")) {
+			return nil, errors.NotFoundError(fmt.Sprintf("Barang dengan ID %d tidak ditemukan", id), err)
+		}
+		return nil, errors.InternalError("Gagal mendapatkan data barang", err)
 	}
 
 	response := item.ToResponse(true)
@@ -196,7 +201,10 @@ func (s *itemService) Delete(ctx context.Context, id uint, userID uint) error {
 	// Dapatkan barang yang ada
 	existingItem, err := s.itemRepo.FindByID(ctx, id)
 	if err != nil {
-		return err
+		if stdErrors.Is(err, stdErrors.New("record not found")) {
+			return errors.NotFoundError(fmt.Sprintf("Barang dengan ID %d tidak ditemukan", id), err)
+		}
+		return errors.InternalError("Gagal mendapatkan data barang", err)
 	}
 
 	// Cek apakah pengguna adalah pemilik barang atau admin
@@ -206,11 +214,19 @@ func (s *itemService) Delete(ctx context.Context, id uint, userID uint) error {
 	}
 	
 	if existingItem.PenjualID != userID && !isAdmin {
-		return errors.New("anda tidak memiliki izin untuk menghapus barang ini")
+		return errors.ForbiddenError(
+			"Anda tidak memiliki izin untuk menghapus barang ini", 
+			stdErrors.New("unauthorized access attempt"),
+		).WithMetadata("itemID", id).WithMetadata("userID", userID)
 	}
 
 	// Hapus barang (soft delete)
-	return s.itemRepo.Delete(ctx, id)
+	if err := s.itemRepo.Delete(ctx, id); err != nil {
+		return errors.InternalError("Gagal menghapus barang", err).
+			WithMetadata("itemID", id)
+	}
+	
+	return nil
 }
 
 // UploadImage mengupload gambar untuk barang
@@ -218,36 +234,45 @@ func (s *itemService) UploadImage(ctx *gin.Context, itemID uint, userID uint) (s
 	// Dapatkan barang yang ada
 	existingItem, err := s.itemRepo.FindByID(ctx, itemID)
 	if err != nil {
-		return "", err
+		if stdErrors.Is(err, stdErrors.New("record not found")) {
+			return "", errors.NotFoundError(fmt.Sprintf("Barang dengan ID %d tidak ditemukan", itemID), err)
+		}
+		return "", errors.InternalError("Gagal mendapatkan data barang", err)
 	}
 
 	// Cek apakah pengguna adalah pemilik barang
 	if existingItem.PenjualID != userID {
-		return "", errors.New("anda tidak memiliki izin untuk mengupload gambar barang ini")
+		return "", errors.ForbiddenError(
+			"Anda tidak memiliki izin untuk mengupload gambar barang ini", 
+			stdErrors.New("unauthorized access attempt"),
+		).WithMetadata("itemID", itemID).WithMetadata("userID", userID)
 	}
 
 	// Dapatkan file dari form
 	file, err := ctx.FormFile("gambar")
 	if err != nil {
-		return "", err
+		return "", errors.ValidationError("Gagal mendapatkan file gambar", err)
 	}
 
 	// Cek ukuran file
 	if file.Size > s.config.Upload.MaxSize {
-		return "", fmt.Errorf("ukuran file terlalu besar (maksimal %d bytes)", s.config.Upload.MaxSize)
+		return "", errors.ValidationError(
+			fmt.Sprintf("Ukuran file terlalu besar (maksimal %d bytes)", s.config.Upload.MaxSize),
+			stdErrors.New("file size exceeds maximum allowed"),
+		)
 	}
 
 	// Buka file untuk dibaca
 	src, err := file.Open()
 	if err != nil {
-		return "", fmt.Errorf("gagal membuka file: %v", err)
+		return "", errors.InternalError("Gagal membuka file", err)
 	}
 	defer src.Close()
 
 	// Baca file ke dalam byte array
 	fileBytes, err := io.ReadAll(src)
 	if err != nil {
-		return "", fmt.Errorf("gagal membaca file: %v", err)
+		return "", errors.InternalError("Gagal membaca file", err)
 	}
 
 	// Buat nama file unik
@@ -370,7 +395,8 @@ func (s *itemService) UploadImage(ctx *gin.Context, itemID uint, userID uint) (s
 	}
 	
 	// Buat URL view untuk gambar - menggunakan format yang dapat diakses publik
-	viewURL := fmt.Sprintf("%s/storage/buckets/%s/files/%s/view?project=%s", 
+	// Gunakan /download endpoint yang tidak memerlukan autentikasi daripada /view
+	viewURL := fmt.Sprintf("%s/storage/buckets/%s/files/%s/download?project=%s", 
 		appwriteEndpoint,
 		bucketID,
 		fileID,

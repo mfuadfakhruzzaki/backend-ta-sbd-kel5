@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mfuadfakhruzzaki/jubel/internal/config"
 	"github.com/mfuadfakhruzzaki/jubel/internal/domain"
+	"github.com/mfuadfakhruzzaki/jubel/internal/errors"
 	"github.com/mfuadfakhruzzaki/jubel/internal/service"
 	"github.com/mfuadfakhruzzaki/jubel/internal/utils"
 )
@@ -119,6 +120,11 @@ func (h *ItemHandler) CreateItem(c *gin.Context) {
 		parts := strings.Split(fileInfo, "|")
 		if len(parts) > 2 {
 			newItem.Gambar = parts[2] // URL gambar
+			
+			// Ensure the URL uses the download endpoint
+			if strings.Contains(newItem.Gambar, "/view") && !strings.Contains(newItem.Gambar, "/download") {
+				newItem.Gambar = strings.Replace(newItem.Gambar, "/view", "/download", 1)
+			}
 		}
 	}
 
@@ -131,14 +137,19 @@ func (h *ItemHandler) GetItem(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "ID barang tidak valid", nil)
+		// Use custom error type instead of utils.ErrorResponse
+		err = errors.ValidationError("ID barang tidak valid", err)
+		_ = c.Error(err)
 		return
 	}
 
 	// Dapatkan data barang
 	item, err := h.itemService.GetByID(c.Request.Context(), uint(id))
 	if err != nil {
-		utils.ErrorResponse(c, http.StatusNotFound, err.Error(), nil)
+		// Use custom error type instead of utils.ErrorResponse
+		err = errors.NotFoundError("Barang tidak ditemukan", err).
+			WithMetadata("itemID", id)
+		_ = c.Error(err)
 		return
 	}
 
@@ -357,28 +368,40 @@ func (h *ItemHandler) DeleteItem(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "ID barang tidak valid", nil)
+		// Use custom error types
+		err = errors.ValidationError("ID barang tidak valid", err)
+		_ = c.Error(err)
 		return
 	}
 
 	// Dapatkan user ID dari context
 	userID, exists := c.Get("userID")
 	if !exists {
-		utils.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", nil)
+		// Use custom error types
+		err = errors.UnauthorizedError("User tidak diautentikasi", nil)
+		_ = c.Error(err)
 		return
 	}
 
 	// Cek role
 	role, exists := c.Get("userRole")
 	if !exists {
-		utils.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized", nil)
+		// Use custom error types
+		err = errors.UnauthorizedError("User tidak diautentikasi", nil)
+		_ = c.Error(err)
 		return
 	}
 
 	// Jika admin, bisa hapus langsung
 	if role.(domain.Role) == domain.RoleAdmin {
 		if err := h.itemService.Delete(c.Request.Context(), uint(id), userID.(uint)); err != nil {
-			utils.ErrorResponse(c, http.StatusInternalServerError, err.Error(), nil)
+			// Use custom error types
+			if strings.Contains(err.Error(), "not found") {
+				err = errors.NotFoundError("Barang tidak ditemukan", err).WithMetadata("itemID", id)
+			} else {
+				err = errors.InternalError("Gagal menghapus barang", err).WithMetadata("itemID", id)
+			}
+			_ = c.Error(err)
 			return
 		}
 		utils.SuccessResponse(c, http.StatusOK, "Barang berhasil dihapus", nil)
@@ -387,7 +410,15 @@ func (h *ItemHandler) DeleteItem(c *gin.Context) {
 
 	// Jika bukan admin, cek kepemilikan
 	if err := h.itemService.Delete(c.Request.Context(), uint(id), userID.(uint)); err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		// Use custom error types
+		if strings.Contains(err.Error(), "not found") {
+			err = errors.NotFoundError("Barang tidak ditemukan", err).WithMetadata("itemID", id)
+		} else if strings.Contains(err.Error(), "unauthorized") || strings.Contains(err.Error(), "not the owner") {
+			err = errors.ForbiddenError("Anda tidak memiliki akses untuk menghapus barang ini", err).WithMetadata("itemID", id)
+		} else {
+			err = errors.InternalError("Gagal menghapus barang", err).WithMetadata("itemID", id)
+		}
+		_ = c.Error(err)
 		return
 	}
 
@@ -449,7 +480,7 @@ func (h *ItemHandler) UploadItemImage(c *gin.Context) {
 		fmt.Printf("Bucket ID: %s\n", bucketID)
 		fmt.Printf("File ID: %s\n", fileID)
 		
-		viewURL = fmt.Sprintf("%s/storage/buckets/%s/files/%s/view?project=%s", 
+		viewURL = fmt.Sprintf("%s/storage/buckets/%s/files/%s/download?project=%s", 
 			appwriteEndpoint,
 			bucketID,
 			fileID,

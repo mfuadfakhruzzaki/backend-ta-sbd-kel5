@@ -84,6 +84,11 @@ func (i *Item) ToResponse(includePenjual bool) ItemResponse {
 						if projectID == "" {
 							projectID = "67e7bbfb003b2a88a380" // Default project ID
 						}
+						
+						// Convert /view to /download if needed
+						gambarURL = strings.Replace(gambarURL, "/view", "/download", 1)
+						
+						// Add project parameter
 						gambarURL = fmt.Sprintf("%s?project=%s", gambarURL, projectID)
 					}
 				}
