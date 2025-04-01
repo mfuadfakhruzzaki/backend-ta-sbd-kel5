@@ -395,8 +395,8 @@ func (s *itemService) UploadImage(ctx *gin.Context, itemID uint, userID uint) (s
 	}
 	
 	// Buat URL view untuk gambar - menggunakan format yang dapat diakses publik
-	// Gunakan /download endpoint yang tidak memerlukan autentikasi daripada /view
-	viewURL := fmt.Sprintf("%s/storage/buckets/%s/files/%s/download?project=%s", 
+	// Gunakan /view endpoint
+	viewURL := fmt.Sprintf("%s/storage/buckets/%s/files/%s/view?project=%s", 
 		appwriteEndpoint,
 		bucketID,
 		fileID,

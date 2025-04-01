@@ -25,5 +25,5 @@ type UpdateItemStatusRequest struct {
 type UploadImageResponse struct {
 	FileName string `json:"file_name" example:"item_1_1620000000.jpg"`
 	FileID   string `json:"file_id" example:"item_1_1620000000"`
-	ViewURL  string `json:"view_url" example:"http://endpoint.com/storage/buckets/bucket-id/files/file-id/download?project=project-id"`
+	ViewURL  string `json:"view_url" example:"http://endpoint.com/storage/buckets/bucket-id/files/file-id/view?project=project-id"`
 } 

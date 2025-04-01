@@ -137,9 +137,9 @@ func (h *ItemHandler) CreateItem(c *gin.Context) {
 		if len(parts) > 2 {
 			newItem.Gambar = parts[2] // URL gambar
 			
-			// Ensure the URL uses the download endpoint
-			if strings.Contains(newItem.Gambar, "/view") && !strings.Contains(newItem.Gambar, "/download") {
-				newItem.Gambar = strings.Replace(newItem.Gambar, "/view", "/download", 1)
+			// Ensure the URL uses the view endpoint
+			if strings.Contains(newItem.Gambar, "/download") && !strings.Contains(newItem.Gambar, "/view") {
+				newItem.Gambar = strings.Replace(newItem.Gambar, "/download", "/view", 1)
 			}
 		}
 	}
@@ -562,7 +562,7 @@ func (h *ItemHandler) UploadItemImage(c *gin.Context) {
 		fmt.Printf("Bucket ID: %s\n", bucketID)
 		fmt.Printf("File ID: %s\n", fileID)
 		
-		viewURL = fmt.Sprintf("%s/storage/buckets/%s/files/%s/download?project=%s", 
+		viewURL = fmt.Sprintf("%s/storage/buckets/%s/files/%s/view?project=%s", 
 			appwriteEndpoint,
 			bucketID,
 			fileID,

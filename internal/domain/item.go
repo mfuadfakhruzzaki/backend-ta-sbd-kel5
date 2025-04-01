@@ -1,8 +1,6 @@
 package domain
 
 import (
-	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -60,57 +58,35 @@ type ItemResponse struct {
 	Deskripsi  string       `json:"deskripsi"`
 	Gambar     string       `json:"gambar"`
 	Status     ItemStatus   `json:"status"`
-	CreatedAt  time.Time    `json:"created_at"`
-	Penjual    UserResponse `json:"penjual,omitempty"`
+	CreatedAt  string       `json:"created_at"`
+	Penjual    *UserResponse `json:"penjual,omitempty"`
 }
 
-// ToResponse mengubah Item ke ItemResponse
-func (i *Item) ToResponse(includePenjual bool) ItemResponse {
-	var gambarURL string
-	
-	// Fix URL gambar jika perlu (pastikan URL memiliki parameter project)
-	if i.Gambar != "" {
-		gambarURL = i.Gambar
-		// Jika URL gambar berasal dari Appwrite tapi belum memiliki parameter project
-		if strings.Contains(gambarURL, "/storage/buckets/") && !strings.Contains(gambarURL, "?project=") {
-			// Cari projectID dari config
-			if strings.Contains(gambarURL, "/files/") {
-				parts := strings.Split(gambarURL, "/files/")
-				if len(parts) > 1 {
-					fileIDParts := strings.Split(parts[1], "/")
-					if len(fileIDParts) > 0 {
-						// Use environment variable or default project ID
-						projectID := os.Getenv("APPWRITE_PROJECT_ID")
-						if projectID == "" {
-							projectID = "67e7bbfb003b2a88a380" // Default project ID
-						}
-						
-						// Convert /view to /download if needed
-						gambarURL = strings.Replace(gambarURL, "/view", "/download", 1)
-						
-						// Add project parameter
-						gambarURL = fmt.Sprintf("%s?project=%s", gambarURL, projectID)
-					}
-				}
-			}
-		}
+// ToResponse mengkonversi model Item ke respons API
+func (i *Item) ToResponse(withPenjual bool) ItemResponse {
+	var penjualResponse *UserResponse
+	if withPenjual {
+		resp := i.Penjual.ToResponse()
+		penjualResponse = &resp
 	}
-	
-	response := ItemResponse{
+
+	// Format gambar URL
+	gambarURL := i.Gambar
+	if gambarURL != "" {
+		// Convert /download to /view if needed
+		gambarURL = strings.Replace(gambarURL, "/download", "/view", 1)
+	}
+
+	return ItemResponse{
 		ID:         i.ID,
-		PenjualID:  i.PenjualID,
 		NamaBarang: i.NamaBarang,
 		Harga:      i.Harga,
 		Kategori:   i.Kategori,
 		Deskripsi:  i.Deskripsi,
-		Gambar:     gambarURL,
 		Status:     i.Status,
-		CreatedAt:  i.CreatedAt,
+		Gambar:     gambarURL,
+		PenjualID:  i.PenjualID,
+		Penjual:    penjualResponse,
+		CreatedAt:  i.CreatedAt.Format(time.RFC3339),
 	}
-
-	if includePenjual {
-		response.Penjual = i.Penjual.ToResponse()
-	}
-
-	return response
 }
