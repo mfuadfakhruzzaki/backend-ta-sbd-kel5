@@ -2,7 +2,7 @@
 
 ## Informasi Umum
 
-Base URL: `https://besbd.fuadfakhruz.id/api/v1`
+Base URL: `https://be-sbd.fuadfakhruz.id/api/v1`
 
 ### Autentikasi
 
